@@ -41,7 +41,8 @@ def window_manager(windows: treelib.Tree):
     # pylint: disable=protected-access
 
     try:
-        sg.theme("SystemDefault1")
+        sg.theme("SystemDefault")
+        misc.fix_theme()
         current_window = windows.root
         args = []
         while True:

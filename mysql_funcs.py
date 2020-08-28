@@ -7,7 +7,7 @@ _TABLES = {}
 
 _TABLES["staff"] = (
     "CREATE TABLE staff ("
-    "   emp_no INT,"
+    "   emp_id INT PRIMARY KEY,"
     "   name VARCHAR(50),"
     "   salary DECIMAL(13, 2),"
     "   department VARCHAR(50)"
@@ -89,10 +89,19 @@ def create_new_db(db_name, window=None):
 
 def set_password(id_: int, password: str):
     cursor = new_cursor()
-    cursor.execute(
-        "INSERT INTO account values (%s, UNHEX(SHA2(%s, 512)))", (id_, password)
-    )
+    cursor.execute("SELECT * FROM account WHERE id = %s", (id_,))
+    cursor.fetchall()
+    if cursor.rowcount == 0:
+        cursor.execute(
+            "INSERT INTO account values (%s, UNHEX(SHA2(%s, 512)))", (id_, password)
+        )
+    else:
+        cursor.execute(
+            "UPDATE account SET password_hash = UNHEX(SHA2(%s, 512)) WHERE id = %s",
+            (password, id_),
+        )
     cursor.close()
+    commit()
 
 
 def validate_password(id_: int, password: str) -> bool:
@@ -106,3 +115,17 @@ def validate_password(id_: int, password: str) -> bool:
     cursor.close()
 
     return password_hash_actual == password_hash_new
+
+
+def get_table_data(table_name):
+    cursor = new_cursor()
+    cursor.execute(f"SELECT * FROM {table_name}")
+
+    values = [list(map(str, values)) for values in cursor.fetchall()]
+    headings = [column[0] for column in cursor.description]
+
+    if len(values) == 0:
+        values.append(["" for _ in range(len(headings))])
+
+    cursor.close()
+    return values, headings

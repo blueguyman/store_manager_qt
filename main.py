@@ -3,7 +3,6 @@ from windows import generate_window_tree
 
 
 def main():
-
     windows = generate_window_tree()
     window_manager(windows)
 

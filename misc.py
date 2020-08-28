@@ -70,3 +70,7 @@ def get_selected_radio(values, key_list):
         if values[key]:
             return key
     return None
+
+
+def fix_theme():
+    sg.theme_button_color((None, None))

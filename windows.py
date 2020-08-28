@@ -1,3 +1,6 @@
+import random
+from decimal import Decimal
+
 import mysql.connector
 import PySimpleGUIQt as sg
 import treelib
@@ -6,7 +9,7 @@ import misc
 import mysql_funcs
 
 
-_SIZE = (992, 558)
+_SIZE = (1024, 576)
 _TITLE = "Store Manager"
 
 
@@ -73,6 +76,7 @@ def cnx_setup():
     ]
 
     layout = [
+        [sg.HSeperator()],
         [sg.Column(title_column), sg.VSeperator(), sg.Column(login_column)],
         [sg.HSeperator()],
         misc.layout_bottom(),
@@ -127,6 +131,13 @@ def db_setup():
             ),
         ],
         [sg.Button("Use",), sg.Button("Delete")],
+        [
+            sg.Text(
+                "Note: Only use database created using this program",
+                font=(None, 8),
+                key="-DP_HINT-",
+            ),
+        ],
         [sg.HSeperator()],
         [sg.Text("\nCreate New Database")],
         [sg.Input(do_not_clear=False, key="-NEW_DB-")],
@@ -140,9 +151,7 @@ def db_setup():
         misc.layout_bottom(),
     ]
 
-    window = sg.Window(
-        _TITLE, layout, size=_SIZE, use_default_focus=False, finalize=True
-    )
+    window = sg.Window(_TITLE, layout, size=_SIZE, finalize=True)
     next_window = "EXIT"
 
     while True:
@@ -198,27 +207,47 @@ def main_menu():
     # TODO: main_menu
 
     manager_column = [
-        [sg.Text("MANAGER", justification="c")],
+        [sg.Text("MANAGER", font=(None, 20, "underline"), justification="c")],
+        [sg.Text()],
+        [sg.Text(key="-MANAGER-NAME")],
+        [sg.Text()],
+        [sg.Button("Manage Staff")],
+        [sg.Button("View Expenses")],
+        [sg.Text()],
+        [sg.Button("Change Password")],
+        [sg.Text()],
+        [sg.Button("Logout")],
         [sg.Stretch()],
     ]
 
     cashier_column = [
-        [sg.Text("TODO: CASHIER")],
+        [sg.Text("CASHIER", font=(None, 20, "underline"), justification="c")],
+        [sg.Text(key="-CASHIER-NAME")],
+        [sg.Text("TODO")],
+        [sg.Button("Logout")],
         [sg.Stretch()],
     ]
 
     cs_column = [
-        [sg.Text("TODO: CSUPPORT")],
+        [sg.Text("CUSTOMER SUPPORT", font=(None, 20, "underline"), justification="c")],
+        [sg.Text(key="-CSUPPORT-NAME")],
+        [sg.Text("TODO")],
+        [sg.Button("Logout")],
         [sg.Stretch()],
     ]
 
     stocker_column = [
-        [sg.Text("TODO: STOCKER")],
+        [sg.Text("STOCKER", font=(None, 20, "underline"), justification="c")],
+        [sg.Text(key="-STOCKER-NAME")],
+        [sg.Text("TODO")],
+        [sg.Button("Logout")],
         [sg.Stretch()],
     ]
 
-    empty_column = [
-        [sg.Text("Please Login to view available options")],
+    main_column = [
+        [sg.Text("MAIN MENU", font=(None, 20, "underline"), justification="c")],
+        [sg.Text("\nThis page is a MAJOR WIP")],
+        [sg.Text("Please Login to view options")],
         [sg.Stretch()],
     ]
 
@@ -227,7 +256,7 @@ def main_menu():
         sg.Column(cashier_column, key="-CASHIER-COL", visible=False),
         sg.Column(cs_column, key="-CSUPPORT-COL", visible=False),
         sg.Column(stocker_column, key="-STOCKER-COL", visible=False),
-        sg.Column(empty_column, key="-EMPTY-COL"),
+        sg.Column(main_column, key="-MAIN-COL"),
     ]
 
     login_mode_column = [
@@ -270,23 +299,33 @@ def main_menu():
         misc.layout_bottom(),
     ]
 
-    window = sg.Window(_TITLE, layout, size=_SIZE, use_default_focus=False)
+    window = sg.Window(
+        _TITLE, layout, size=_SIZE, use_default_focus=False, finalize=True
+    )
     next_window = "EXIT"
-    current_mode = "-EMPTY-"
+    current_mode = "-MAIN-"
+    if window["-NAME-"].get() != "":
+        window["-PASSWORD-"].set_focus()
 
     while True:
         event, values = window.read()
 
+        # LOGIN COLUMN
+
         if event in ("Exit", sg.WIN_CLOSED):
             break
 
-        if event == "-MANAGER-":
+        if event == "-MANAGER-":  # Click on Manager Radio Element
             if not values["-MANAGER-"]:
+                # If Radio is selected
                 window["-PASSWORD-"].update(disabled=True, background_color="grey")
                 window["-DP_HINT-"].update(visible=False)
             else:
                 window["-PASSWORD-"].update(disabled=False, background_color="white")
                 window["-DP_HINT-"].update(visible=True)
+                window["-PASSWORD-"].set_focus()
+
+        # MAIN MENU
 
         if event == "Login":
             if values["-NAME-"] == "":
@@ -304,12 +343,45 @@ def main_menu():
                     continue
 
             window[current_mode + "COL"].update(visible=False)
+            if current_mode != "-MAIN-":
+                misc.log(window, f"Logged out of {current_mode[1:-1]}")
 
             current_mode = new_mode
-            misc.CACHE["name"] = values["-NAME-"]
+            misc.CACHE["name"] = values["-NAME-"].strip()
             misc.log(window, f"Logged into {new_mode[1:-1]} as {misc.CACHE['name']}")
+            if current_mode != "-MAIN-":
+                window[current_mode + "NAME"].update(f"Name: {misc.CACHE['name']}")
 
             window[current_mode + "COL"].update(visible=True)
+
+        # MODE COLUMNS
+
+        if event.startswith("Logout"):
+            window[current_mode + "COL"].update(visible=False)
+            misc.log(window, f"Logged out of {current_mode[1:-1]}")
+            current_mode = "-MAIN-"
+            window[current_mode + "COL"].update(visible=True)
+
+        # MANAGER COLUMN
+
+        if event == "Manage Staff":
+            next_window = (manager, staff_management)
+            break
+
+        if event == "Change Password":
+            new_pass = sg.popup_get_text(
+                "New Password",
+                "Change Password",
+                password_char="*",
+                size=(_SIZE[0] // 2, None),
+            )
+            if new_pass is not None:
+                try:
+                    mysql_funcs.set_password(0, new_pass)
+                    misc.log(window, "Password changed")
+                    misc.save_data("manager_password_changed", True)
+                except mysql.connector.Error as err:
+                    misc.log(window, err)
 
     misc.log(window)
     window.close()
@@ -319,9 +391,9 @@ def main_menu():
 # ****************************************
 # Parent: main_menu
 # ****************************************
-def manager():
-    # TODO: manager
-    pass
+def manager(child=None):
+    # Decided to not make a separate window. Basically just here to stay organised
+    return child if child else "BACK"
 
 
 # ****************************************
@@ -329,7 +401,221 @@ def manager():
 # ****************************************
 def staff_management():
     # TODO: staff_management
-    pass
+
+    staff_table_column = [
+        [
+            sg.Table(
+                *mysql_funcs.get_table_data("staff"), enable_events=True, key="-STAFF-"
+            )
+        ]
+    ]
+
+    staff_modify_column = [
+        [sg.Text("Staff Management", font=(None, 20, "underline"), justification="c")],
+        [sg.Text()],
+        [sg.Button("Add New Staff")],
+        [sg.Text()],
+        [
+            sg.Text(
+                "Click on the row numbers on the left to modify values", font=(None, 8)
+            ),
+        ],
+        [sg.Button("Edit Details", disabled=True)],
+        [sg.Button("Remove Staff", disabled=True)],
+        [sg.Text()],
+        [sg.Button("Back")],
+        [sg.Stretch()],
+    ]
+
+    layout = [
+        [
+            sg.Column(staff_table_column),
+            sg.VSeperator(),
+            sg.Column(staff_modify_column),
+        ],
+        [sg.HSeperator()],
+        misc.layout_bottom(),
+    ]
+
+    window = sg.Window(_TITLE, layout, size=_SIZE)
+    next_window = "EXIT"
+
+    while True:
+        event, values = window.read()
+
+        if event is sg.WIN_CLOSED:
+            break
+
+        if event == "Back":
+            next_window = "BACK"
+            break
+
+        if len(values["-STAFF-"]) > 0:
+            if len(values["-STAFF-"]) == 1:
+                window["Edit Details"].update(disabled=False)
+            else:
+                window["Edit Details"].update(disabled=True)
+            window["Remove Staff"].update(disabled=False)
+        else:
+            window["Edit Details"].update(disabled=True)
+            window["Remove Staff"].update(disabled=True)
+
+        if event == "Add New Staff":
+            staff_data = new_staff()
+            if staff_data is None:
+                continue
+            cursor = mysql_funcs.new_cursor()
+            try:
+                cursor.execute("INSERT INTO staff VALUES (%s, %s, %s, %s)", staff_data)
+            except mysql.connector.Error as err:
+                misc.log(window, err)
+            cursor.close()
+            mysql_funcs.commit()
+
+        if event == "Edit Details":
+            employee_data = window["-STAFF-"].get()[values["-STAFF-"][0]]
+            modified_data = edit_staff(employee_data)
+            if modified_data is None:
+                continue
+            cursor = mysql_funcs.new_cursor()
+            try:
+                cursor.execute(
+                    "UPDATE staff SET emp_id=%s, name=%s, salary=%s, department=%s "
+                    "WHERE emp_id=%s",
+                    (*modified_data, employee_data[0]),
+                )
+            except mysql.connector.Error as err:
+                misc.log(window, err)
+            cursor.close()
+            mysql_funcs.commit()
+
+        if event == "Remove Staff":
+            ids_to_delete = [
+                (int(window["-STAFF-"].get()[i][0]),) for i in values["-STAFF-"]
+            ]
+            cursor = mysql_funcs.new_cursor()
+            try:
+                cursor.executemany("DELETE FROM staff WHERE emp_id = %s", ids_to_delete)
+            except mysql.connector.Error as err:
+                misc.log(window, err)
+            cursor.close()
+            mysql_funcs.commit()
+
+        if event != "-STAFF-":
+            window["-STAFF-"].update(mysql_funcs.get_table_data("staff")[0])
+
+    window.close()
+    return next_window
+
+
+# POPUP: Staff Manager
+def new_staff():
+    layout = [
+        [
+            sg.Text("Employee Id"),
+            sg.Input(enable_events=True, key="-ID-"),
+            sg.Button("Random"),
+        ],
+        [sg.Text("Employee Name"), sg.Input(key="-NAME-")],
+        [sg.Text("Salary"), sg.Input(enable_events=True, key="-SALARY-")],
+        [sg.Text("Department"), sg.Input(key="-DEPARTMENT-")],
+        [sg.Button("Add", bind_return_key=True), sg.Cancel()],
+    ]
+
+    window = sg.Window("New Staff", layout,)
+    staff_data = None
+
+    while True:
+        event, values = window.read()
+
+        if event in ("Cancel", sg.WIN_CLOSED):
+            break
+
+        if event == "Random":
+            id_ = str(random.randint(1000, 9999))
+            window["-ID-"].update(id_)
+
+        if event == "Add":
+            id_ = int(values["-ID-"])
+            name = values["-NAME-"]
+            salary = Decimal(values["-SALARY-"])
+            dept = values["-DEPARTMENT-"]
+            staff_data = (id_, name, salary, dept)
+            break
+
+        # Filter Input
+        if (
+            event == "-ID-"
+            and values["-ID-"]
+            and values["-ID-"][-1] not in ("0123456789")
+        ):
+            window["-ID-"].update(values["-ID-"][:-1])
+
+        if (
+            event == "-SALARY-"
+            and values["-SALARY-"]
+            and values["-SALARY-"][-1] not in ("0123456789.")
+        ):
+            window["-SALARY-"].update(values["-SALARY-"][:-1])
+
+    window.close()
+    return staff_data
+
+
+def edit_staff(employee_data):
+    layout = [
+        [
+            sg.Text("Employee Id"),
+            sg.Input(employee_data[0], enable_events=True, key="-ID-"),
+            sg.Button("Random"),
+        ],
+        [sg.Text("Employee Name"), sg.Input(employee_data[1], key="-NAME-")],
+        [
+            sg.Text("Salary"),
+            sg.Input(employee_data[2], enable_events=True, key="-SALARY-"),
+        ],
+        [sg.Text("Department"), sg.Input(employee_data[3], key="-DEPARTMENT-")],
+        [sg.Button("Change", bind_return_key=True), sg.Cancel()],
+    ]
+
+    window = sg.Window("Edit Staff", layout,)
+    modified_data = None
+
+    while True:
+        event, values = window.read()
+
+        if event in ("Cancel", sg.WIN_CLOSED):
+            break
+
+        if event == "Random":
+            id_ = str(random.randint(1000, 9999))
+            window["-ID-"].update(id_)
+
+        if event == "Change":
+            id_ = int(values["-ID-"])
+            name = values["-NAME-"]
+            salary = Decimal(values["-SALARY-"])
+            dept = values["-DEPARTMENT-"]
+            modified_data = (id_, name, salary, dept)
+            break
+
+        # Filter Input
+        if (
+            event == "-ID-"
+            and values["-ID-"]
+            and values["-ID-"][-1] not in ("0123456789")
+        ):
+            window["-ID-"].update(values["-ID-"][:-1])
+
+        if (
+            event == "-SALARY-"
+            and values["-SALARY-"]
+            and values["-SALARY-"][-1] not in ("0123456789.")
+        ):
+            window["-SALARY-"].update(values["-SALARY-"][:-1])
+
+    window.close()
+    return modified_data
 
 
 # ****************************************
