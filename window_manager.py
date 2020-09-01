@@ -46,6 +46,7 @@ def window_manager(windows: treelib.Tree):
         current_window = windows.root
         args = []
         while True:
+            # The identifier is a function object
             window_data = windows.get_node(current_window).identifier(*args)
             if window_data is None:
                 break

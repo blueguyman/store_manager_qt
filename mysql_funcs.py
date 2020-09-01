@@ -8,8 +8,8 @@ _TABLES = {}
 _TABLES["staff"] = (
     "CREATE TABLE staff ("
     "   emp_id INT PRIMARY KEY,"
-    "   name VARCHAR(50),"
-    "   salary DECIMAL(13, 2),"
+    "   name VARCHAR(50) NOT NULL,"
+    "   salary DECIMAL(13, 2) NOT NULL,"
     "   department VARCHAR(50)"
     ")"
 )
@@ -17,7 +17,7 @@ _TABLES["staff"] = (
 # fmt: off
 _TABLES["account"] = (
     "CREATE TABLE account ("
-    "   id INT PRIMARY KEY,"
+    "   user VARCHAR(50) PRIMARY KEY,"
     "   password_hash BINARY(64)"
     ")"
 )
@@ -73,7 +73,7 @@ def create_new_db(db_name, window=None):
     try:
         for table in _TABLES.values():
             cursor.execute(table)
-        set_password(0, "0000")
+        set_password("manager", "0000")
         misc.save_data("database", db_name, "mysql")
         db_created = True
     except mysql.connector.Error as err:
@@ -87,27 +87,27 @@ def create_new_db(db_name, window=None):
     return db_created
 
 
-def set_password(id_: int, password: str):
+def set_password(user: str, password: str):
     cursor = new_cursor()
-    cursor.execute("SELECT * FROM account WHERE id = %s", (id_,))
+    cursor.execute("SELECT * FROM account WHERE user = %s", (user,))
     cursor.fetchall()
     if cursor.rowcount == 0:
         cursor.execute(
-            "INSERT INTO account values (%s, UNHEX(SHA2(%s, 512)))", (id_, password)
+            "INSERT INTO account values (%s, UNHEX(SHA2(%s, 512)))", (user, password)
         )
     else:
         cursor.execute(
-            "UPDATE account SET password_hash = UNHEX(SHA2(%s, 512)) WHERE id = %s",
-            (password, id_),
+            "UPDATE account SET password_hash = UNHEX(SHA2(%s, 512)) WHERE user = %s",
+            (password, user),
         )
     cursor.close()
     commit()
 
 
-def validate_password(id_: int, password: str) -> bool:
+def validate_password(user: str, password: str) -> bool:
     cursor = new_cursor()
 
-    cursor.execute("SELECT password_hash FROM account WHERE id = %s", (id_,))
+    cursor.execute("SELECT password_hash FROM account WHERE user = %s", (user,))
     password_hash_actual = cursor.fetchone()[0]
 
     cursor.execute("SELECT UNHEX(SHA2(%s, 512))", (password,))

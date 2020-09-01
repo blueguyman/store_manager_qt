@@ -133,7 +133,7 @@ def db_setup():
         [sg.Button("Use",), sg.Button("Delete")],
         [
             sg.Text(
-                "Note: Only use database created using this program",
+                "Note: Only use databases created using this program",
                 font=(None, 8),
                 key="-DP_HINT-",
             ),
@@ -338,7 +338,7 @@ def main_menu():
             )
 
             if new_mode == "-MANAGER-":
-                if not mysql_funcs.validate_password(0, values["-PASSWORD-"]):
+                if not mysql_funcs.validate_password("manager", values["-PASSWORD-"]):
                     misc.log(window, f"Incorrect password for {new_mode[1:-1]}")
                     continue
 
@@ -352,14 +352,6 @@ def main_menu():
             if current_mode != "-MAIN-":
                 window[current_mode + "NAME"].update(f"Name: {misc.CACHE['name']}")
 
-            window[current_mode + "COL"].update(visible=True)
-
-        # MODE COLUMNS
-
-        if event.startswith("Logout"):
-            window[current_mode + "COL"].update(visible=False)
-            misc.log(window, f"Logged out of {current_mode[1:-1]}")
-            current_mode = "-MAIN-"
             window[current_mode + "COL"].update(visible=True)
 
         # MANAGER COLUMN
@@ -377,11 +369,19 @@ def main_menu():
             )
             if new_pass is not None:
                 try:
-                    mysql_funcs.set_password(0, new_pass)
+                    mysql_funcs.set_password("manager", new_pass)
                     misc.log(window, "Password changed")
-                    misc.save_data("manager_password_changed", True)
+                    event = "Logout"  # Kinda hacky. Might want to change it
                 except mysql.connector.Error as err:
                     misc.log(window, err)
+
+        # MODE COLUMNS
+
+        if event.startswith("Logout"):
+            window[current_mode + "COL"].update(visible=False)
+            misc.log(window, f"Logged out of {current_mode[1:-1]}")
+            current_mode = "-MAIN-"
+            window[current_mode + "COL"].update(visible=True)
 
     misc.log(window)
     window.close()
@@ -450,7 +450,7 @@ def staff_management():
             next_window = "BACK"
             break
 
-        if len(values["-STAFF-"]) > 0:
+        if len(values["-STAFF-"]) > 0 and window["-STAFF-"].get()[0][0] != "":
             if len(values["-STAFF-"]) == 1:
                 window["Edit Details"].update(disabled=False)
             else:
@@ -462,32 +462,34 @@ def staff_management():
 
         if event == "Add New Staff":
             staff_data = new_staff()
-            if staff_data is None:
-                continue
-            cursor = mysql_funcs.new_cursor()
-            try:
-                cursor.execute("INSERT INTO staff VALUES (%s, %s, %s, %s)", staff_data)
-            except mysql.connector.Error as err:
-                misc.log(window, err)
-            cursor.close()
-            mysql_funcs.commit()
+            if staff_data is not None:
+                cursor = mysql_funcs.new_cursor()
+                try:
+                    cursor.execute(
+                        "INSERT INTO staff VALUES (%s, %s, %s, %s)", staff_data
+                    )
+                    misc.log(window, "Employee added to table")
+                except mysql.connector.Error as err:
+                    misc.log(window, err)
+                cursor.close()
+                mysql_funcs.commit()
 
         if event == "Edit Details":
             employee_data = window["-STAFF-"].get()[values["-STAFF-"][0]]
             modified_data = edit_staff(employee_data)
-            if modified_data is None:
-                continue
-            cursor = mysql_funcs.new_cursor()
-            try:
-                cursor.execute(
-                    "UPDATE staff SET emp_id=%s, name=%s, salary=%s, department=%s "
-                    "WHERE emp_id=%s",
-                    (*modified_data, employee_data[0]),
-                )
-            except mysql.connector.Error as err:
-                misc.log(window, err)
-            cursor.close()
-            mysql_funcs.commit()
+            if modified_data is not None:
+                cursor = mysql_funcs.new_cursor()
+                try:
+                    cursor.execute(
+                        "UPDATE staff SET emp_id=%s, name=%s, salary=%s, department=%s "
+                        "WHERE emp_id=%s",
+                        (*modified_data, employee_data[0]),
+                    )
+                    misc.log(window, "Employee modified")
+                except mysql.connector.Error as err:
+                    misc.log(window, err)
+                cursor.close()
+                mysql_funcs.commit()
 
         if event == "Remove Staff":
             ids_to_delete = [
@@ -496,14 +498,17 @@ def staff_management():
             cursor = mysql_funcs.new_cursor()
             try:
                 cursor.executemany("DELETE FROM staff WHERE emp_id = %s", ids_to_delete)
+                misc.log(window, f"Removed {len(ids_to_delete)} employee(s)")
             except mysql.connector.Error as err:
                 misc.log(window, err)
             cursor.close()
             mysql_funcs.commit()
 
-        if event != "-STAFF-":
-            window["-STAFF-"].update(mysql_funcs.get_table_data("staff")[0])
+        updated_data = mysql_funcs.get_table_data("staff")[0]
+        if updated_data != window["-STAFF-"].get():
+            window["-STAFF-"].update(updated_data)
 
+    misc.log(window)
     window.close()
     return next_window
 
@@ -535,13 +540,17 @@ def new_staff():
             id_ = str(random.randint(1000, 9999))
             window["-ID-"].update(id_)
 
-        if event == "Add":
-            id_ = int(values["-ID-"])
-            name = values["-NAME-"]
-            salary = Decimal(values["-SALARY-"])
-            dept = values["-DEPARTMENT-"]
-            staff_data = (id_, name, salary, dept)
-            break
+        if event == "Add" and len(values["-ID-"]) != 0:
+            if not values["-NAME-"] == "" or not values["-SALARY-"] == "":
+                id_ = int(values["-ID-"])
+                name = values["-NAME-"]
+                salary = Decimal(values["-SALARY-"])
+                dept = values["-DEPARTMENT-"]
+                staff_data = (id_, name, salary, dept)
+                break
+
+        if event == "Add" and len(values["-ID-"]) == 0:
+            window["-ID-"].update(str(random.randint(1000, 9999)))
 
         # Filter Input
         if (
@@ -591,13 +600,17 @@ def edit_staff(employee_data):
             id_ = str(random.randint(1000, 9999))
             window["-ID-"].update(id_)
 
-        if event == "Change":
-            id_ = int(values["-ID-"])
-            name = values["-NAME-"]
-            salary = Decimal(values["-SALARY-"])
-            dept = values["-DEPARTMENT-"]
-            modified_data = (id_, name, salary, dept)
-            break
+        if event == "Change" and len(values["-ID-"]) != 0:
+            if not values["-NAME-"] == "" or not values["-SALARY-"] == "":
+                id_ = int(values["-ID-"])
+                name = values["-NAME-"]
+                salary = Decimal(values["-SALARY-"])
+                dept = values["-DEPARTMENT-"]
+                modified_data = (id_, name, salary, dept)
+                break
+
+        if event == "Change" and len(values["-ID-"]) == 0:
+            window["-ID-"].update(str(random.randint(1000, 9999)))
 
         # Filter Input
         if (
