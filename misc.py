@@ -7,7 +7,7 @@ CACHE = {"log": "STORE MANAGER\n\n"}
 
 
 def save_data(key, value, category="misc"):
-    file = "data.json"
+    file = "./data.json"
     try:
         with open(file) as fp:
             data = json.load(fp)

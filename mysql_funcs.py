@@ -25,7 +25,9 @@ _TABLES["account"] = (
 
 
 def connect_to_mysql(host, user, password):
-    cnx = mysql.connector.connect(host=host, user=user, password=password)
+    cnx = mysql.connector.connect(
+        host=host, user=user, password=password, use_pure=True
+    )
     misc.save_data("host", host, "mysql")
     misc.save_data("user", user, "mysql")
     misc.CACHE["cnx"] = cnx

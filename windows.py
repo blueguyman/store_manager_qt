@@ -540,16 +540,17 @@ def new_staff():
             id_ = str(random.randint(1000, 9999))
             window["-ID-"].update(id_)
 
-        if event == "Add" and len(values["-ID-"]) != 0:
-            if not values["-NAME-"] == "" or not values["-SALARY-"] == "":
-                id_ = int(values["-ID-"])
-                name = values["-NAME-"]
-                salary = Decimal(values["-SALARY-"])
-                dept = values["-DEPARTMENT-"]
-                staff_data = (id_, name, salary, dept)
-                break
+        if event == "Add" and values["-ID-"] != "" and values["-NAME-"] != "":
+            id_ = values["-ID-"]
+            name = values["-NAME-"]
+            salary = values["-SALARY-"]
+            if salary == "":
+                salary = 0
+            dept = values["-DEPARTMENT-"]
+            staff_data = (id_, name, salary, dept)
+            break
 
-        if event == "Add" and len(values["-ID-"]) == 0:
+        if event == "Add" and values["-ID-"] == "":
             window["-ID-"].update(str(random.randint(1000, 9999)))
 
         # Filter Input
@@ -600,16 +601,17 @@ def edit_staff(employee_data):
             id_ = str(random.randint(1000, 9999))
             window["-ID-"].update(id_)
 
-        if event == "Change" and len(values["-ID-"]) != 0:
-            if not values["-NAME-"] == "" or not values["-SALARY-"] == "":
-                id_ = int(values["-ID-"])
-                name = values["-NAME-"]
-                salary = Decimal(values["-SALARY-"])
-                dept = values["-DEPARTMENT-"]
-                modified_data = (id_, name, salary, dept)
-                break
+        if event == "Change" and values["-ID-"] != "" and values["-NAME-"] != "":
+            id_ = values["-ID-"]
+            name = values["-NAME-"]
+            salary = values["-SALARY-"]
+            if salary == "":
+                salary = 0
+            dept = values["-DEPARTMENT-"]
+            modified_data = (id_, name, salary, dept)
+            break
 
-        if event == "Change" and len(values["-ID-"]) == 0:
+        if event == "Change" and values["-ID-"] == "":
             window["-ID-"].update(str(random.randint(1000, 9999)))
 
         # Filter Input
