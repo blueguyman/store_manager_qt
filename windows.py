@@ -26,7 +26,6 @@ def generate_window_tree():
 
     # Customer Support subtree
     windows.create_node("Customer Support", customer_support, main_menu)
-    windows.create_node("New Ticket", new_ticket, customer_support)
     windows.create_node("Manage Tickets", manage_tickets, customer_support)
 
     # Cashier subtree
@@ -239,7 +238,6 @@ def main_menu():
         [sg.Text("CUSTOMER SUPPORT", font=(None, 20, "underline"), justification="c")],
         [sg.Text(key="-CSUPPORT-NAME")],
         [sg.Text()],
-        [sg.Button("New Ticket")],
         [sg.Button("Manage Tickets")],
         [sg.Text()],
         [sg.Button("Logout")],
@@ -392,9 +390,6 @@ def main_menu():
                     misc.log(window, err)
 
         # CSUPPORT COLUMN
-
-        if event == "New Ticket":
-            pass
 
         if event == "Manage Tickets":
             next_window = (customer_support, manage_tickets)
@@ -552,10 +547,7 @@ def new_staff():
         [sg.Button("Add", bind_return_key=True), sg.Cancel()],
     ]
 
-    window = sg.Window(
-        "New Staff",
-        layout,
-    )
+    window = sg.Window("New Staff", layout)
     staff_data = None
 
     while True:
@@ -600,6 +592,7 @@ def new_staff():
     return staff_data
 
 
+# POPUP: Staff Manager
 def edit_staff(employee_data):
     layout = [
         [
@@ -616,10 +609,7 @@ def edit_staff(employee_data):
         [sg.Button("Change", bind_return_key=True), sg.Cancel()],
     ]
 
-    window = sg.Window(
-        "Edit Staff",
-        layout,
-    )
+    window = sg.Window("Edit Staff", layout)
     modified_data = None
 
     while True:
@@ -682,27 +672,40 @@ def customer_support(child=None):
 # ****************************************
 # Parent: customer_support
 # ****************************************
-def new_ticket():
-    # TODO: new_ticket
-    pass
-
-
-# ****************************************
-# Parent: customer_support
-# ****************************************
 def manage_tickets():
-    ticket_column = [
+    ticket_table_column = [
         [
             sg.Table(
                 *mysql_funcs.get_table_data("ticket", "status"),
                 enable_events=True,
-                key="-TICKETS-",
+                key="-TICKET-",
             )
         ]
     ]
 
+    ticket_modify_column = [
+        [sg.Text("Customer Support", font=(None, 20, "underline"), justification="c")],
+        [sg.Text()],
+        [sg.Button("Create New Ticket")],
+        [sg.Text()],
+        [
+            sg.Text(
+                "Click on the row numbers on the left to modify values", font=(None, 8)
+            ),
+        ],
+        [sg.Button("Manage Ticket", disabled=True)],
+        [sg.Button("Delete Tickets", disabled=True)],
+        [sg.Text()],
+        [sg.Button("Back")],
+        [sg.Stretch()],
+    ]
+
     layout = [
-        [sg.Column(ticket_column)],
+        [
+            sg.Column(ticket_table_column),
+            sg.VSeperator(),
+            sg.Column(ticket_modify_column),
+        ],
         [sg.Text()],
         [sg.HSeperator()],
         misc.layout_bottom(),
@@ -719,11 +722,153 @@ def manage_tickets():
         if event is sg.WIN_CLOSED:
             break
 
-        misc.log(window, event, values)
+        if event == "Back":
+            next_window = "BACK"
+            break
+
+        if len(values["-TICKET-"]) > 0 and window["-TICKET-"].get()[0][0] != "":
+            if len(values["-TICKET-"]) == 1:
+                window["Manage Ticket"].update(disabled=False)
+            else:
+                window["Manage Ticket"].update(disabled=True)
+            window["Delete Tickets"].update(disabled=False)
+        else:
+            window["Manage Ticket"].update(disabled=True)
+            window["Delete Tickets"].update(disabled=True)
+
+        if event == "Create New Ticket":
+            ticket_data = new_ticket()
+            if ticket_data is not None:
+                cursor = mysql_funcs.new_cursor()
+                try:
+                    cursor.execute(
+                        "INSERT INTO ticket VALUES (%s, %s, %s, %s)", ticket_data
+                    )
+                    misc.log(window, "Ticket Created")
+                except mysql.connector.Error as err:
+                    misc.log(window, err)
+                cursor.close()
+                mysql_funcs.commit()
+
+        if event == "Manage Ticket":
+            ticket_data = window["-TICKET-"].get()[values["-TICKET-"][0]]
+            new_status = edit_ticket(ticket_data)
+            if new_status is not None:
+                cursor = mysql_funcs.new_cursor()
+                try:
+                    cursor.execute(
+                        "UPDATE ticket SET status=%s WHERE ticket_id=%s",
+                        (new_status, ticket_data[0]),
+                    )
+                    misc.log(window, "Status Updated")
+                except mysql.connector.Error as err:
+                    misc.log(window, err)
+                cursor.close()
+                mysql_funcs.commit()
+
+        if event == "Delete Tickets":
+            ids_to_delete = [
+                (int(window["-TICKET-"].get()[i][0]),) for i in values["-TICKET-"]
+            ]
+            cursor = mysql_funcs.new_cursor()
+            try:
+                cursor.executemany(
+                    "DELETE FROM ticket WHERE ticket_id = %s", ids_to_delete
+                )
+                misc.log(window, f"Removed {len(ids_to_delete)} ticket(s)")
+            except mysql.connector.Error as err:
+                misc.log(window, err)
+            cursor.close()
+            mysql_funcs.commit()
+
+        updated_data = mysql_funcs.get_table_data("ticket", "status")[0]
+        if updated_data != window["-TICKET-"].get():
+            window["-TICKET-"].update(updated_data)
 
     misc.log(window)
     window.close()
     return next_window
+
+
+def new_ticket():
+    layout = [
+        [
+            sg.Text("Ticket Number"),
+            sg.Input(enable_events=True, key="-ID-"),
+            sg.Button("Random"),
+        ],
+        [sg.Text("Author"), sg.Input(key="-AUTHOR-")],
+        [sg.Text("Message")],
+        [sg.Multiline(key="-MESSAGE-")],
+        [sg.Button("Create", bind_return_key=True), sg.Cancel()],
+    ]
+
+    window = sg.Window("New Ticket", layout)
+    ticket_data = None
+
+    while True:
+        event, values = window.read()
+
+        if event in ("Cancel", sg.WIN_CLOSED):
+            break
+
+        if event == "Random":
+            id_ = str(random.randint(1000, 9999))
+            window["-ID-"].update(id_)
+
+        if event == "Create" and values["-ID-"] != "" and values["-AUTHOR-"] != "":
+            id_ = values["-ID-"]
+            author = values["-AUTHOR-"]
+            message = values["-MESSAGE-"]
+            ticket_data = (id_, author, message, "unresolved")
+            break
+
+        if event == "Create" and values["-ID-"] == "":
+            window["-ID-"].update(str(random.randint(1000, 9999)))
+
+        # Filter Input
+        if (
+            event == "-ID-"
+            and values["-ID-"]
+            and values["-ID-"][-1] not in ("0123456789")
+        ):
+            window["-ID-"].update(values["-ID-"][:-1])
+
+    window.close()
+    return ticket_data
+
+
+def edit_ticket(ticket_data):
+    layout = [
+        [sg.Text(f"Ticket ID: {ticket_data[0]}")],
+        [sg.Text(f"Author: {ticket_data[1]}")],
+        [sg.Text("Message:")],
+        [sg.MultilineOutput(ticket_data[2])],
+        [
+            sg.Text("Status:"),
+            sg.Radio("Unresolved", "status", key="unresolved"),
+            sg.Radio("Resolved", "status", key="resolved"),
+        ],
+        [sg.Button("Save", bind_return_key=True), sg.Cancel()],
+    ]
+
+    window = sg.Window(f"Ticket #{ticket_data[0]}", layout, finalize=True)
+    new_status = None
+
+    window[ticket_data[-1]].update(True)
+
+    while True:
+        event, values = window.read()
+
+        if event in ("Cancel", sg.WIN_CLOSED):
+            break
+
+        if event == "Save":
+            new_status = misc.get_selected_radio(values, ["unresolved", "resolved"])
+            break
+
+    window.close()
+    return new_status
 
 
 # ****************************************

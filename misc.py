@@ -52,7 +52,13 @@ def layout_bottom():
         ],
     ]
 
-    bottom = [sg.TabGroup([[sg.Tab("Log", log_tab, background_color="light grey")],])]
+    bottom = [
+        sg.TabGroup(
+            [
+                [sg.Tab("Log", log_tab, background_color="light grey")],
+            ]
+        )
+    ]
 
     return bottom
 
