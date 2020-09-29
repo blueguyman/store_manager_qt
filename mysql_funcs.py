@@ -26,7 +26,8 @@ _TABLES["ticket"] = (
     "CREATE TABLE ticket ("
     "   ticket_id INT PRIMARY KEY,"
     "   author VARCHAR(50) NOT NULL,"
-    "   content VARCHAR(1500),"
+    "   email VARCHAR(50),"
+    "   content VARCHAR(2500),"
     '   status ENUM("unresolved", "resolved")'
     ")"
 )

@@ -742,7 +742,7 @@ def manage_tickets():
                 cursor = mysql_funcs.new_cursor()
                 try:
                     cursor.execute(
-                        "INSERT INTO ticket VALUES (%s, %s, %s, %s)", ticket_data
+                        "INSERT INTO ticket VALUES (%s, %s, %s, %s, %s)", ticket_data
                     )
                     misc.log(window, "Ticket Created")
                 except mysql.connector.Error as err:
@@ -798,6 +798,7 @@ def new_ticket():
             sg.Button("Random"),
         ],
         [sg.Text("Author"), sg.Input(key="-AUTHOR-")],
+        [sg.Text("E-mail ID"), sg.Input(key="-EMAIL-")],
         [sg.Text("Message")],
         [sg.Multiline(key="-MESSAGE-")],
         [sg.Button("Create", bind_return_key=True), sg.Cancel()],
@@ -819,8 +820,9 @@ def new_ticket():
         if event == "Create" and values["-ID-"] != "" and values["-AUTHOR-"] != "":
             id_ = values["-ID-"]
             author = values["-AUTHOR-"]
+            email = values["-EMAIL-"]
             message = values["-MESSAGE-"]
-            ticket_data = (id_, author, message, "unresolved")
+            ticket_data = (id_, author, email, message, "unresolved")
             break
 
         if event == "Create" and values["-ID-"] == "":
@@ -842,8 +844,9 @@ def edit_ticket(ticket_data):
     layout = [
         [sg.Text(f"Ticket ID: {ticket_data[0]}")],
         [sg.Text(f"Author: {ticket_data[1]}")],
+        [sg.Text(f"Email: {ticket_data[2]}")],
         [sg.Text("Message:")],
-        [sg.MultilineOutput(ticket_data[2])],
+        [sg.MultilineOutput(ticket_data[3])],
         [
             sg.Text("Status:"),
             sg.Radio("Unresolved", "status", key="unresolved"),
