@@ -5,6 +5,7 @@ import misc
 
 _TABLES = {}
 
+# fmt: off
 _TABLES["staff"] = (
     "CREATE TABLE staff ("
     "   emp_id INT PRIMARY KEY,"
@@ -14,13 +15,22 @@ _TABLES["staff"] = (
     ")"
 )
 
-# fmt: off
 _TABLES["account"] = (
     "CREATE TABLE account ("
     "   user VARCHAR(50) PRIMARY KEY,"
     "   password_hash BINARY(64)"
     ")"
 )
+
+_TABLES["ticket"] = (
+    "CREATE TABLE ticket ("
+    "   ticket_id INT PRIMARY KEY,"
+    "   author VARCHAR(50) NOT NULL,"
+    "   content VARCHAR(1500),"
+    '   status ENUM("unresolved", "resolved")'
+    ")"
+)
+
 # fmt: on
 
 
@@ -119,9 +129,12 @@ def validate_password(user: str, password: str) -> bool:
     return password_hash_actual == password_hash_new
 
 
-def get_table_data(table_name):
+def get_table_data(table_name, sort_by_column=None):
     cursor = new_cursor()
-    cursor.execute(f"SELECT * FROM {table_name}")
+    query = f"SELECT * FROM {table_name}"
+    if sort_by_column:
+        query += f" ORDER BY {sort_by_column}"
+    cursor.execute(query)
 
     values = [list(map(str, values)) for values in cursor.fetchall()]
     headings = [column[0] for column in cursor.description]

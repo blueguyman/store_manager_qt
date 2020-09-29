@@ -94,10 +94,12 @@ def cnx_setup():
         if event == "Login":
             try:
                 mysql_funcs.connect_to_mysql(
-                    values["-HOST-"], values["-USER-"], values["-PASSWORD-"],
+                    values["-HOST-"],
+                    values["-USER-"],
+                    values["-PASSWORD-"],
                 )
                 misc.log(window, "Access granted")
-                misc.log(window, "Estabilished connection to MySQL Server")
+                misc.log(window, "Estabilishesort_by_columnMySQL Server")
                 next_window = db_setup
                 break
             except mysql.connector.Error as err:
@@ -130,7 +132,12 @@ def db_setup():
                 key="-DB-",
             ),
         ],
-        [sg.Button("Use",), sg.Button("Delete")],
+        [
+            sg.Button(
+                "Use",
+            ),
+            sg.Button("Delete"),
+        ],
         [
             sg.Text(
                 "Note: Only use databases created using this program",
@@ -231,7 +238,10 @@ def main_menu():
     cs_column = [
         [sg.Text("CUSTOMER SUPPORT", font=(None, 20, "underline"), justification="c")],
         [sg.Text(key="-CSUPPORT-NAME")],
-        [sg.Text("TODO")],
+        [sg.Text()],
+        [sg.Button("New Ticket")],
+        [sg.Button("Manage Tickets")],
+        [sg.Text()],
         [sg.Button("Logout")],
         [sg.Stretch()],
     ]
@@ -284,7 +294,9 @@ def main_menu():
             sg.Text("Name:"),
             sg.Input(misc.load_data("name", ""), focus=True, key="-NAME-"),
         ],
-        [sg.Text(),],
+        [
+            sg.Text(),
+        ],
         [sg.Text("Login Mode")],
         [sg.Column(login_mode_column)],
         [sg.Button("Login", bind_return_key=True), sg.Exit()],
@@ -294,7 +306,11 @@ def main_menu():
         [sg.Text(_TITLE.upper(), font=(None, 32, "underline"), justification="c")],
         [sg.HSeperator()],
         [sg.Text()],
-        [sg.Column(login_column), sg.VSeperator(), *mode_columns,],
+        [
+            sg.Column(login_column),
+            sg.VSeperator(),
+            *mode_columns,
+        ],
         [sg.HSeperator()],
         misc.layout_bottom(),
     ]
@@ -374,6 +390,15 @@ def main_menu():
                     event = "Logout"  # Kinda hacky. Might want to change it
                 except mysql.connector.Error as err:
                     misc.log(window, err)
+
+        # CSUPPORT COLUMN
+
+        if event == "New Ticket":
+            pass
+
+        if event == "Manage Tickets":
+            next_window = (customer_support, manage_tickets)
+            break
 
         # MODE COLUMNS
 
@@ -527,7 +552,10 @@ def new_staff():
         [sg.Button("Add", bind_return_key=True), sg.Cancel()],
     ]
 
-    window = sg.Window("New Staff", layout,)
+    window = sg.Window(
+        "New Staff",
+        layout,
+    )
     staff_data = None
 
     while True:
@@ -588,7 +616,10 @@ def edit_staff(employee_data):
         [sg.Button("Change", bind_return_key=True), sg.Cancel()],
     ]
 
-    window = sg.Window("Edit Staff", layout,)
+    window = sg.Window(
+        "Edit Staff",
+        layout,
+    )
     modified_data = None
 
     while True:
@@ -644,9 +675,8 @@ def profit_and_loss():
 # ****************************************
 # Parent: main_menu
 # ****************************************
-def customer_support():
-    # TODO: customer_support
-    pass
+def customer_support(child=None):
+    return child if child else "BACK"
 
 
 # ****************************************
@@ -661,8 +691,39 @@ def new_ticket():
 # Parent: customer_support
 # ****************************************
 def manage_tickets():
-    # TODO: manage_tickets
-    pass
+    ticket_column = [
+        [
+            sg.Table(
+                *mysql_funcs.get_table_data("ticket", "status"),
+                enable_events=True,
+                key="-TICKETS-",
+            )
+        ]
+    ]
+
+    layout = [
+        [sg.Column(ticket_column)],
+        [sg.Text()],
+        [sg.HSeperator()],
+        misc.layout_bottom(),
+    ]
+
+    window = sg.Window(
+        _TITLE, layout, size=_SIZE, use_default_focus=False, finalize=True
+    )
+    next_window = "EXIT"
+
+    while True:
+        event, values = window.read()
+
+        if event is sg.WIN_CLOSED:
+            break
+
+        misc.log(window, event, values)
+
+    misc.log(window)
+    window.close()
+    return next_window
 
 
 # ****************************************
