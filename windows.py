@@ -100,7 +100,7 @@ def cnx_setup():
                     values["-PASSWORD-"],
                 )
                 misc.log(window, "Access granted")
-                misc.log(window, "Estabilishesort_by_columnMySQL Server")
+                misc.log(window, "Estabilished MySQL Server")
                 next_window = db_setup
                 break
             except mysql.connector.Error as err:
