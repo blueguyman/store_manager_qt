@@ -28,7 +28,7 @@ _TABLES["ticket"] = (
     "   author VARCHAR(50) NOT NULL,"
     "   email VARCHAR(50),"
     "   content VARCHAR(2500),"
-    '   status ENUM("unresolved", "resolved")'
+    '   status VARCHAR(50)'
     ")"
 )
 
@@ -130,11 +130,14 @@ def validate_password(user: str, password: str) -> bool:
     return password_hash_actual == password_hash_new
 
 
-def get_table_data(table_name, sort_by_column=None):
+def get_table_data(table_name, *sort_by_column):
     cursor = new_cursor()
     query = f"SELECT * FROM {table_name}"
     if sort_by_column:
-        query += f" ORDER BY {sort_by_column}"
+        query += " ORDER BY "
+    for column, order in sort_by_column:
+        query += f"{column} {order},"
+    query = query.rstrip(",")
     cursor.execute(query)
 
     values = [list(map(str, values)) for values in cursor.fetchall()]

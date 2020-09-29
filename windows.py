@@ -1,10 +1,12 @@
 import random
+import webbrowser
 from decimal import Decimal
 
 import mysql.connector
 import PySimpleGUIQt as sg
 import treelib
 
+import demo_db
 import misc
 import mysql_funcs
 
@@ -123,6 +125,12 @@ def db_setup():
     db_column = [
         [sg.Text("Database", font=(None, 20), justification="c")],
         [sg.Text()],
+        [sg.Text("Create New Database")],
+        [sg.Input(do_not_clear=False, key="-NEW_DB-")],
+        [sg.Check("Insert sample data (Demo Mode)", key="-DEMO_MODE-")],
+        [sg.Button("Create")],
+        [sg.HSeperator()],
+        [sg.Text()],
         [
             sg.Text("Database"),
             sg.Combo(
@@ -144,10 +152,6 @@ def db_setup():
                 key="-DP_HINT-",
             ),
         ],
-        [sg.HSeperator()],
-        [sg.Text("\nCreate New Database")],
-        [sg.Input(do_not_clear=False, key="-NEW_DB-")],
-        [sg.Button("Create")],
     ]
 
     layout = [
@@ -197,6 +201,8 @@ def db_setup():
             if event == "Create" and values["-NEW_DB-"] != "":
                 if mysql_funcs.create_new_db(values["-NEW_DB-"], window):
                     misc.log(window, f"Created database {values['-NEW_DB-']}")
+                if values["-DEMO_MODE-"]:
+                    demo_db.fill_database(values["-NEW_DB-"])
 
         except mysql.connector.Error as err:
             misc.log(window, err)
@@ -228,6 +234,7 @@ def main_menu():
 
     cashier_column = [
         [sg.Text("CASHIER", font=(None, 20, "underline"), justification="c")],
+        [sg.Text()],
         [sg.Text(key="-CASHIER-NAME")],
         [sg.Text("TODO")],
         [sg.Button("Logout")],
@@ -236,6 +243,7 @@ def main_menu():
 
     cs_column = [
         [sg.Text("CUSTOMER SUPPORT", font=(None, 20, "underline"), justification="c")],
+        [sg.Text()],
         [sg.Text(key="-CSUPPORT-NAME")],
         [sg.Text()],
         [sg.Button("Manage Tickets")],
@@ -246,6 +254,7 @@ def main_menu():
 
     stocker_column = [
         [sg.Text("STOCKER", font=(None, 20, "underline"), justification="c")],
+        [sg.Text()],
         [sg.Text(key="-STOCKER-NAME")],
         [sg.Text("TODO")],
         [sg.Button("Logout")],
@@ -254,8 +263,10 @@ def main_menu():
 
     main_column = [
         [sg.Text("MAIN MENU", font=(None, 20, "underline"), justification="c")],
-        [sg.Text("\nThis page is a MAJOR WIP")],
-        [sg.Text("Please Login to view options")],
+        [sg.Text("\nLogin to view more options\n", justification="c")],
+        [sg.Button("Github")],
+        [sg.Text()],
+        [sg.Button("Feedback")],
         [sg.Stretch()],
     ]
 
@@ -368,6 +379,14 @@ def main_menu():
 
             window[current_mode + "COL"].update(visible=True)
 
+        if event == "Github":
+            webbrowser.open("https://github.com/blueguyman/store_manager_qt")
+
+        if event == "Feedback":
+            sg.popup(
+                "Please send any feedback to midhun128@gmail.com", title="Feedback"
+            )
+
         # MANAGER COLUMN
 
         if event == "Manage Staff":
@@ -425,7 +444,11 @@ def staff_management():
     staff_table_column = [
         [
             sg.Table(
-                *mysql_funcs.get_table_data("staff"), enable_events=True, key="-STAFF-"
+                *mysql_funcs.get_table_data(
+                    "staff", ("department", "asc"), ("emp_id", "asc")
+                ),
+                enable_events=True,
+                key="-STAFF-",
             )
         ]
     ]
@@ -524,7 +547,9 @@ def staff_management():
             cursor.close()
             mysql_funcs.commit()
 
-        updated_data = mysql_funcs.get_table_data("staff")[0]
+        updated_data = mysql_funcs.get_table_data(
+            "staff", ("department", "asc"), ("emp_id", "asc")
+        )[0]
         if updated_data != window["-STAFF-"].get():
             window["-STAFF-"].update(updated_data)
 
@@ -676,7 +701,9 @@ def manage_tickets():
     ticket_table_column = [
         [
             sg.Table(
-                *mysql_funcs.get_table_data("ticket", "status"),
+                *mysql_funcs.get_table_data(
+                    "ticket", ("status", "desc"), ("ticket_id", "asc")
+                ),
                 enable_events=True,
                 key="-TICKET-",
             )
@@ -781,7 +808,9 @@ def manage_tickets():
             cursor.close()
             mysql_funcs.commit()
 
-        updated_data = mysql_funcs.get_table_data("ticket", "status")[0]
+        updated_data = mysql_funcs.get_table_data(
+            "ticket", ("status", "desc"), ("ticket_id", "asc")
+        )[0]
         if updated_data != window["-TICKET-"].get():
             window["-TICKET-"].update(updated_data)
 
