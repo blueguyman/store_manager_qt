@@ -1,6 +1,5 @@
 import random
 import webbrowser
-from decimal import Decimal
 
 import mysql.connector
 import PySimpleGUIQt as sg
@@ -256,7 +255,9 @@ def main_menu():
         [sg.Text("STOCKER", font=(None, 20, "underline"), justification="c")],
         [sg.Text()],
         [sg.Text(key="-STOCKER-NAME")],
-        [sg.Text("TODO")],
+        [sg.Text()],
+        [sg.Button("Manage Products")],
+        [sg.Text()],
         [sg.Button("Logout")],
         [sg.Stretch()],
     ]
@@ -265,7 +266,6 @@ def main_menu():
         [sg.Text("MAIN MENU", font=(None, 20, "underline"), justification="c")],
         [sg.Text("\nLogin to view more options\n", justification="c")],
         [sg.Button("Github")],
-        [sg.Text()],
         [sg.Button("Feedback")],
         [sg.Stretch()],
     ]
@@ -414,6 +414,12 @@ def main_menu():
             next_window = (customer_support, manage_tickets)
             break
 
+        # STOCKER COLUMN
+
+        if event == "Manage Products":
+            next_window = (stocker, inventory_management)
+            break
+
         # MODE COLUMNS
 
         if event.startswith("Logout"):
@@ -422,7 +428,7 @@ def main_menu():
             current_mode = "-MAIN-"
             window[current_mode + "COL"].update(visible=True)
 
-    misc.log(window)
+    # misc.log(window)
     window.close()
     return next_window
 
@@ -930,14 +936,324 @@ def checkout():
 # ****************************************
 # Parent: main_menu
 # ****************************************
-def stocker():
-    # TODO: stocker
-    pass
+def stocker(child=None):
+    return child if child else "BACK"
 
 
 # ****************************************
 # Parent: stocker
 # ****************************************
 def inventory_management():
-    # TODO: inventory_management
-    pass
+    product_table_column = [
+        [
+            sg.Table(
+                *mysql_funcs.get_table_data("products"),
+                enable_events=True,
+                key="-PRODUCTS-",
+            )
+        ]
+    ]
+
+    product_modify_column = [
+        [sg.Text("Stocker", font=(None, 20, "underline"), justification="c")],
+        [sg.Text()],
+        [sg.Button("Add New Product")],
+        [sg.Text()],
+        [
+            sg.Text(
+                "Click on the row numbers on the left to modify values", font=(None, 8)
+            ),
+        ],
+        [sg.Button("Edit Product", disabled=True)],
+        [sg.Button("Delete Products", disabled=True)],
+        [sg.Text()],
+        [sg.Button("Back")],
+        [sg.Stretch()],
+    ]
+
+    layout = [
+        [
+            sg.Column(product_table_column),
+            sg.VSeperator(),
+            sg.Column(product_modify_column),
+        ],
+        [sg.HSeperator()],
+        misc.layout_bottom(),
+    ]
+
+    window = sg.Window(
+        _TITLE, layout, size=_SIZE, use_default_focus=False, finalize=True
+    )
+    next_window = "EXIT"
+
+    while True:
+        event, values = window.read()
+
+        if event is sg.WIN_CLOSED:
+            break
+
+        if event == "Back":
+            next_window = "BACK"
+            break
+
+        if len(values["-PRODUCTS-"]) > 0 and window["-PRODUCTS-"].get()[0][0] != "":
+            if len(values["-PRODUCTS-"]) == 1:
+                window["Edit Product"].update(disabled=False)
+            else:
+                window["Edit Product"].update(disabled=True)
+            window["Delete Products"].update(disabled=False)
+        else:
+            window["Edit Product"].update(disabled=True)
+            window["Delete Products"].update(disabled=True)
+
+        if event == "Add New Product":
+            product_data = new_product()
+            if product_data is not None:
+                cursor = mysql_funcs.new_cursor()
+                try:
+                    cursor.execute(
+                        "INSERT INTO products VALUES (%s, %s, %s, %s, %s)", product_data
+                    )
+                    misc.log(window, "Product added to table")
+                except mysql.connector.Error as err:
+                    misc.log(window, err)
+                cursor.close()
+                mysql_funcs.commit()
+
+        if event == "Edit Product":
+            product_data = window["-PRODUCTS-"].get()[values["-PRODUCTS-"][0]]
+            modified_data = edit_product(product_data)
+            if modified_data is not None:
+                cursor = mysql_funcs.new_cursor()
+                try:
+                    cursor.execute(
+                        "UPDATE products SET product_id=%s, name=%s, price=%s, expiry_date=%s, qty=%s "
+                        "WHERE product_id=%s",
+                        (*modified_data, product_data[0]),
+                    )
+                    misc.log(window, "Product modified")
+                except mysql.connector.Error as err:
+                    misc.log(window, err)
+                cursor.close()
+                mysql_funcs.commit()
+
+        if event == "Delete Products":
+            ids_to_delete = [
+                (int(window["-PRODUCTS-"].get()[i][0]),) for i in values["-PRODUCTS-"]
+            ]
+            cursor = mysql_funcs.new_cursor()
+            try:
+                cursor.executemany(
+                    "DELETE FROM products WHERE product_id = %s", ids_to_delete
+                )
+                misc.log(window, f"Removed {len(ids_to_delete)} product(s)")
+            except mysql.connector.Error as err:
+                misc.log(window, err)
+            cursor.close()
+            mysql_funcs.commit()
+
+        updated_data = mysql_funcs.get_table_data("products")[0]
+        if updated_data != window["-PRODUCTS-"].get():
+            window["-PRODUCTS-"].update(updated_data)
+
+    misc.log(window)
+    window.close()
+    return next_window
+
+
+def new_product():
+    layout = [
+        [
+            sg.Text("Product ID"),
+            sg.Input(enable_events=True, key="-ID-"),
+            sg.Button("Random"),
+        ],
+        [sg.Text("Name"), sg.Input(key="-NAME-")],
+        [sg.Text("Price"), sg.Input(enable_events=True, key="-PRICE-")],
+        [
+            sg.Checkbox("Expiry Date", enable_events=True, key="-IS_EXP-"),
+            sg.Input(
+                disabled=True,
+                background_color="grey",
+                enable_events=True,
+                key="-EXPIRY-",
+            ),
+        ],
+        [sg.Text("Quantity"), sg.Input(enable_events=True, key="-QTY-")],
+        [sg.Button("Add", bind_return_key=True), sg.Cancel()],
+    ]
+
+    window = sg.Window("New Product", layout)
+    product_data = None
+
+    while True:
+        event, values = window.read()
+
+        if event in ("Cancel", sg.WIN_CLOSED):
+            break
+
+        if event == "-IS_EXP-":
+            if not values["-IS_EXP-"]:
+                window["-EXPIRY-"].update(disabled=True, background_color="grey")
+            else:
+                window["-EXPIRY-"].update(disabled=False, background_color="white")
+
+        if event == "Random":
+            id_ = str(random.randint(1000, 9999))
+            window["-ID-"].update(id_)
+
+        if event == "Add" and values["-ID-"] != "" and values["-NAME-"] != "":
+            id_ = values["-ID-"]
+            name = values["-NAME-"]
+            price = values["-PRICE-"]
+            if price == "":
+                price = 0
+            if values["-IS_EXP-"] and values["-EXPIRY-"] != "":
+                expiry_date = values["-EXPIRY-"]
+            else:
+                expiry_date = None
+            quantity = values["-QTY-"]
+            if quantity == "":
+                quantity = 1
+            product_data = (id_, name, price, expiry_date, quantity)
+            break
+
+        if event == "Add" and values["-ID-"] == "":
+            window["-ID-"].update(str(random.randint(1000, 9999)))
+
+        # Filter Input
+        if (
+            event == "-ID-"
+            and values["-ID-"]
+            and values["-ID-"][-1] not in ("0123456789")
+        ):
+            window["-ID-"].update(values["-ID-"][:-1])
+
+        if (
+            event == "-QTY-"
+            and values["-QTY-"]
+            and values["-QTY-"][-1] not in ("0123456789")
+        ):
+            window["-QTY-"].update(values["-QTY-"][:-1])
+
+        if (
+            event == "-EXPIRY-"
+            and values["-EXPIRY-"]
+            and values["-EXPIRY-"][-1] not in ("0123456789-")
+        ):
+            window["-EXPIRY-"].update(values["-EXPIRY-"][:-1])
+
+        if (
+            event == "-PRICE-"
+            and values["-PRICE-"]
+            and values["-PRICE-"][-1] not in ("0123456789.")
+        ):
+            window["-PRICE-"].update(values["-PRICE-"][:-1])
+
+    window.close()
+    return product_data
+
+
+def edit_product(product_data):
+    layout = [
+        [
+            sg.Text("Product ID"),
+            sg.Input(product_data[0], enable_events=True, key="-ID-"),
+            sg.Button("Random"),
+        ],
+        [sg.Text("Name"), sg.Input(product_data[1], key="-NAME-")],
+        [
+            sg.Text("Price"),
+            sg.Input(product_data[2], enable_events=True, key="-PRICE-"),
+        ],
+        [
+            sg.Checkbox("Expiry Date", enable_events=True, key="-IS_EXP-"),
+            sg.Input(
+                disabled=True,
+                background_color="grey",
+                enable_events=True,
+                key="-EXPIRY-",
+            ),
+        ],
+        [
+            sg.Text("Quantity"),
+            sg.Input(product_data[4], enable_events=True, key="-QTY-"),
+        ],
+        [sg.Button("Change", bind_return_key=True), sg.Cancel()],
+    ]
+
+    window = sg.Window("New Product", layout, finalize=True)
+    modified_data = None
+
+    if product_data[3]:
+        window["-IS_EXP-"].update(value=True)
+        window["-EXPIRY-"].update(
+            value=product_data[3], disabled=False, background_color="white"
+        )
+
+    while True:
+        event, values = window.read()
+
+        if event in ("Cancel", sg.WIN_CLOSED):
+            break
+
+        if event == "-IS_EXP-":
+            if not values["-IS_EXP-"]:
+                window["-EXPIRY-"].update(disabled=True, background_color="grey")
+            else:
+                window["-EXPIRY-"].update(disabled=False, background_color="white")
+
+        if event == "Random":
+            id_ = str(random.randint(1000, 9999))
+            window["-ID-"].update(id_)
+
+        if event == "Change" and values["-ID-"] != "" and values["-NAME-"] != "":
+            id_ = values["-ID-"]
+            name = values["-NAME-"]
+            price = values["-PRICE-"]
+            if price == "":
+                price = 0
+            if values["-IS_EXP-"] and values["-EXPIRY-"] != "":
+                expiry_date = values["-EXPIRY-"]
+            else:
+                expiry_date = None
+            quantity = values["-QTY-"]
+            if quantity == "":
+                quantity = 1
+            modified_data = (id_, name, price, expiry_date, quantity)
+            break
+
+        if event == "Change" and values["-ID-"] == "":
+            window["-ID-"].update(str(random.randint(1000, 9999)))
+
+        # Filter Input
+        if (
+            event == "-ID-"
+            and values["-ID-"]
+            and values["-ID-"][-1] not in ("0123456789")
+        ):
+            window["-ID-"].update(values["-ID-"][:-1])
+
+        if (
+            event == "-QTY-"
+            and values["-QTY-"]
+            and values["-QTY-"][-1] not in ("0123456789")
+        ):
+            window["-QTY-"].update(values["-QTY-"][:-1])
+
+        if (
+            event == "-EXPIRY-"
+            and values["-EXPIRY-"]
+            and values["-EXPIRY-"][-1] not in ("0123456789-")
+        ):
+            window["-EXPIRY-"].update(values["-EXPIRY-"][:-1])
+
+        if (
+            event == "-PRICE-"
+            and values["-PRICE-"]
+            and values["-PRICE-"][-1] not in ("0123456789.")
+        ):
+            window["-PRICE-"].update(values["-PRICE-"][:-1])
+
+    window.close()
+    return modified_data

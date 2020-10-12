@@ -6,6 +6,7 @@ import misc
 _TABLES = {}
 
 # fmt: off
+
 _TABLES["staff"] = (
     "CREATE TABLE staff ("
     "   emp_id INT PRIMARY KEY,"
@@ -30,6 +31,17 @@ _TABLES["ticket"] = (
     "   content VARCHAR(2500),"
     '   status VARCHAR(50)'
     ")"
+)
+
+_TABLES["products"] = (
+    "CREATE TABLE `products` ("
+    "`product_id` int(11) NOT NULL,"
+    "`name` varchar(255) NOT NULL,"
+    "`price` float NOT NULL,"
+    "`expiry_date` date,"
+    "`qty` int(11) NOT NULL,"
+    "PRIMARY KEY (product_id)"
+    ") ENGINE=InnoDB DEFAULT CHARSET=latin1;"
 )
 
 # fmt: on
