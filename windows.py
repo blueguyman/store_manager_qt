@@ -23,7 +23,6 @@ def generate_window_tree():
     # Manager subtree
     windows.create_node("Manager", manager, main_menu)
     windows.create_node("Staff Management", staff_management, manager)
-    windows.create_node("Profit and Loss", profit_and_loss, manager)
 
     # Customer Support subtree
     windows.create_node("Customer Support", customer_support, main_menu)
@@ -201,7 +200,7 @@ def db_setup():
                 if mysql_funcs.create_new_db(values["-NEW_DB-"], window):
                     misc.log(window, f"Created database {values['-NEW_DB-']}")
                 if values["-DEMO_MODE-"]:
-                    demo_db.fill_database(values["-NEW_DB-"])
+                    demo_db.fill_database()
 
         except mysql.connector.Error as err:
             misc.log(window, err)
@@ -223,7 +222,6 @@ def main_menu():
         [sg.Text(key="-MANAGER-NAME")],
         [sg.Text()],
         [sg.Button("Manage Staff")],
-        [sg.Button("View Expenses")],
         [sg.Text()],
         [sg.Button("Change Password")],
         [sg.Text()],
@@ -235,7 +233,9 @@ def main_menu():
         [sg.Text("CASHIER", font=(None, 20, "underline"), justification="c")],
         [sg.Text()],
         [sg.Text(key="-CASHIER-NAME")],
-        [sg.Text("TODO")],
+        [sg.Text()],
+        [sg.Button("New Transaction")],
+        [sg.Text()],
         [sg.Button("Logout")],
         [sg.Stretch()],
     ]
@@ -412,6 +412,12 @@ def main_menu():
 
         if event == "Manage Tickets":
             next_window = (customer_support, manage_tickets)
+            break
+
+        # CASHIER COLUMN
+
+        if event == "New Transaction":
+            next_window = (cashier, start_transaction)
             break
 
         # STOCKER COLUMN
@@ -686,14 +692,6 @@ def edit_staff(employee_data):
 
 
 # ****************************************
-# Parent: manager
-# ****************************************
-def profit_and_loss():
-    # TODO: profit_and_loss
-    pass
-
-
-# ****************************************
 # Parent: main_menu
 # ****************************************
 def customer_support(child=None):
@@ -912,17 +910,238 @@ def edit_ticket(ticket_data):
 # ****************************************
 # Parent: main_menu
 # ****************************************
-def cashier():
-    # TODO: cashier
-    pass
+def cashier(child=None):
+    return child if child else "BACK"
 
 
 # ****************************************
 # Parent: cashier
 # ****************************************
 def start_transaction():
-    # TODO: start_transaction
-    pass
+    layout = [
+        [sg.Text(text="Invoice Form", font=(None, 20), justification="c")],
+        [sg.Text()],
+        [
+            sg.Text("Customer Name", size=(15, 1)),
+            sg.InputText(key="cust_name"),
+        ],
+        [
+            sg.Text("Customer Email", size=(15, 1)),
+            sg.InputText(key="cust_email"),
+            sg.Text("Customer Mobile", size=(15, 1)),
+            sg.InputText(key="cust_mobile"),
+        ],
+        [sg.Text()],
+        [
+            sg.Frame(
+                "Item Details",
+                [
+                    [
+                        sg.Text("ID"),
+                        sg.InputText(key="item_id", size=(10, 1), enable_events=True),
+                        sg.Text("Product"),
+                        sg.InputText(
+                            key="item_name",
+                            disabled=True,
+                            text_color="black",
+                            size=(30, 1),
+                        ),
+                        sg.Text("Qty"),
+                        sg.InputText(key="item_qty", size=(10, 1)),
+                        sg.Text("Unit Price"),
+                        sg.InputText(
+                            key="price", disabled=True, text_color="black", size=(15, 1)
+                        ),
+                        sg.Button("Browse", size=(8, 1)),
+                        sg.Button("Add", size=(8, 1)),
+                        sg.Button("-loadbyid-", visible=False, bind_return_key=True),
+                    ]
+                ],
+            )
+        ],
+        [
+            sg.Table(
+                values=misc._cartItems,
+                headings=["ID", "Product Name", "Qty", "Unit Price", "Total Price"],
+                justification="right",
+                col_widths=[1, 5, 2, 2, 2],
+                key="prodTable",
+                select_mode=sg.TABLE_SELECT_MODE_EXTENDED,
+            )
+        ],
+        [
+            sg.Text(
+                "0.00",
+                key="total",
+                font=(None, 35),
+                justification="right",
+                enable_events=True,
+            )
+        ],
+        [
+            sg.Column(
+                [
+                    [
+                        sg.Button("Checkout", size=(10, 1)),
+                        sg.Button("Close", size=(10, 1)),
+                    ]
+                ],
+                element_justification="right",
+            )
+        ],
+    ]
+
+    window = sg.Window(_TITLE, layout, size=_SIZE, use_default_focus=False)
+    next_window = "BACK"
+
+    cartItems = []
+
+    while True:
+        event, values = window.read(timeout=200)
+        # print(event, values)
+        if not event:
+            break
+
+        elif event == "Browse":
+            # print("in browse")
+            searchKeyword = ""
+            browseWin = misc.browse_products()
+            selectedProduct = None
+            _productsList = mysql_funcs.get_table_data("products")[0]
+            while True:
+                eventBrowse, valuesBrowse = browseWin.read(timeout=200)
+                # print(eventBrowse, valuesBrowse)
+                if not eventBrowse:
+                    exit(0)
+                elif eventBrowse == "Select":
+                    # print(_productsList[selectedProduct])
+                    if selectedProduct is None:
+                        sg.Popup("Warning", "Please select a product to add")
+                    else:
+                        window["item_id"].Update(
+                            value=_productsList[selectedProduct][0]
+                        )
+                        window["item_name"].Update(
+                            value=_productsList[selectedProduct][1]
+                        )
+                        window["item_qty"].Update(value="1")
+                        window["price"].Update(value=_productsList[selectedProduct][2])
+                    break
+                elif eventBrowse == "Close":
+                    break
+                elif eventBrowse == "prodTable":
+                    # print(valuesBrowse['prodTable'])
+                    if len(valuesBrowse["prodTable"]):
+                        selectedProduct = valuesBrowse["prodTable"][0]
+                elif eventBrowse == "keyword":
+                    if searchKeyword != valuesBrowse["keyword"]:
+                        # print(searchKeyword)
+                        searchKeyword = valuesBrowse["keyword"]
+                        _productsList = mysql_funcs.get_table_data(
+                            "products", search_dict={"name": f"%{searchKeyword}%"}
+                        )[0]
+                        newData = []
+                        if _productsList is not None:
+                            for product in _productsList:
+                                newData.append(
+                                    [
+                                        str(product[0]),
+                                        product[1],
+                                        product[4],
+                                        str(product[2]),
+                                    ]
+                                )
+                            browseWin["prodTable"].Update(values=newData)
+
+            browseWin.close()
+
+        elif event == "-loadbyid-":
+            if values["item_id"] == "":
+                sg.Popup("Please enter a valid Product ID")
+            else:
+                prod = mysql_funcs.get_table_data(
+                    "products", search_dict={"id": values["item_id"]}
+                )[0]
+                if not prod:
+                    sg.Popup("Please enter a valid Product ID")
+                else:
+                    # window["item_id"].Update(value = prod[0])
+                    window["item_name"].Update(value=prod[2])
+                    window["item_qty"].Update(value="1")
+                    window["price"].Update(value=prod[5])
+                    # print(prod)
+
+        elif event == "Add":
+            if (
+                values["item_id"] != ""
+                and values["item_name"] != ""
+                and values["item_qty"] != ""
+                and values["price"] != ""
+            ):
+                # cartItems.append([values["item_id"], values["item_name"], values["item_qty"],
+                # values["price"], str(int(values["item_qty"])*float(values["price"]))])
+                newItem = [
+                    values["item_id"],
+                    values["item_name"],
+                    values["item_qty"],
+                    values["price"],
+                    str(int(values["item_qty"]) * float(values["price"])),
+                ]
+                cartItems = misc.add_to_cart(cartItems, newItem)
+                window["prodTable"].Update(values=cartItems)
+                window["total"].Update(value=str(sum(float(v[4]) for v in cartItems)))
+                misc.clear_fields(window)
+            else:
+                sg.popup("", "Please select and item to add")
+
+        elif event == "Checkout":
+            confirm = sg.popup_yes_no("Confirm Transaction?")
+            if confirm == "No":
+                continue
+
+            order_id = None
+            # print(values)
+            # print(window["total"])
+            # print("in save")
+            cursor = mysql_funcs.new_cursor()
+            try:
+                total = str(sum(float(v[4]) for v in cartItems))
+                # print(total)
+                cursor.execute(
+                    "INSERT INTO orders (cust_name, cust_email, cust_phone, total_amount) VALUES (%s, %s, %s, %s )",
+                    [
+                        values["cust_name"],
+                        values["cust_email"],
+                        values["cust_mobile"],
+                        total,
+                    ],
+                )
+            except mysql.connector.Error as err:
+                print(err)
+            order_id = cursor.lastrowid
+            cursor.close()
+            mysql_funcs.commit()
+            for item in cartItems:
+                cursor = mysql_funcs.new_cursor()
+                try:
+                    cursor.execute(
+                        "INSERT INTO `order_items` (`order_id`, `item_id`, `item_name`, `qty`, `unit_price`, `sub_total`) VALUES (%s, %s, %s, %s, %s, %s)",
+                        [str(order_id), item[0], item[1], item[2], item[3], item[4]],
+                    )
+                except mysql.connector.Error as err:
+                    print(err)
+                cursor.close()
+                mysql_funcs.commit()
+
+            sg.popup("Transaction processed.")
+
+            break
+
+        elif event == "Close":
+            break
+
+    window.close()
+    return next_window
 
 
 # ****************************************

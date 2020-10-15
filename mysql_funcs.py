@@ -44,6 +44,31 @@ _TABLES["products"] = (
     ") ENGINE=InnoDB DEFAULT CHARSET=latin1;"
 )
 
+_TABLES["orders"] = (
+    "CREATE TABLE `orders` ("
+    "`id` int(11) NOT NULL AUTO_INCREMENT,"
+    "`cust_name` varchar(255) DEFAULT NULL,"
+    "`cust_email` varchar(255) DEFAULT NULL,"
+    "`cust_phone` varchar(20) DEFAULT NULL,"
+    "`total_amount` float NOT NULL,"
+    "`date` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,"
+    "PRIMARY KEY (id)"
+    ")"
+)
+
+_TABLES["order_items"] = (
+    "CREATE TABLE `order_items` ("
+    "`id` int(11) NOT NULL AUTO_INCREMENT,"
+    "`order_id` int(11) NOT NULL,"
+    "`item_id` int(11) NOT NULL,"
+    "`item_name` varchar(255) NOT NULL,"
+    "`qty` int(11) NOT NULL,"
+    "`unit_price` float NOT NULL,"
+    "`sub_total` float NOT NULL,"
+    "PRIMARY KEY (id)"
+    ")"
+)
+
 # fmt: on
 
 
@@ -142,15 +167,25 @@ def validate_password(user: str, password: str) -> bool:
     return password_hash_actual == password_hash_new
 
 
-def get_table_data(table_name, *sort_by_column):
+def get_table_data(table_name, *sort_by_column, search_dict=None, search_mode="AND"):
     cursor = new_cursor()
     query = f"SELECT * FROM {table_name}"
+    if search_dict:
+        query += " WHERE "
+        for column_name in search_dict:
+            query += f"{column_name} LIKE %s {search_mode} "
+        if query.endswith(f"{search_mode} "):
+            query = query[: -(len(search_mode) + 1)]
     if sort_by_column:
         query += " ORDER BY "
-    for column, order in sort_by_column:
-        query += f"{column} {order},"
+        for column, order in sort_by_column:
+            query += f"{column} {order},"
     query = query.rstrip(",")
-    cursor.execute(query)
+
+    if search_dict:
+        cursor.execute(query, tuple(search_dict.values()))
+    else:
+        cursor.execute(query)
 
     values = [list(map(str, values)) for values in cursor.fetchall()]
     headings = [column[0] for column in cursor.description]

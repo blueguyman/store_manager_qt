@@ -2,6 +2,8 @@ import json
 
 import PySimpleGUIQt as sg
 
+import mysql_funcs
+
 
 CACHE = {"log": "STORE MANAGER\n\n"}
 
@@ -80,3 +82,67 @@ def get_selected_radio(values, key_list):
 
 def fix_theme():
     sg.theme_button_color((None, None))
+
+
+# FAHAD: CASHIER
+
+_cartItems = [["", "", "", "", ""]]
+
+
+def add_to_cart(cartData, newItem=None):
+    if newItem is not None:
+        itemExists = False
+        for i in range(len(cartData)):
+            if cartData[i][0] == newItem[0]:
+                curQty = cartData[i][2]
+                cartData[i][2] = str(int(curQty) + int(newItem[2]))
+                cartData[i][4] = str(int(cartData[i][2]) * float(cartData[i][3]))
+                itemExists = True
+        if not itemExists:
+            cartData.append(newItem)
+        return cartData
+
+
+def browse_products():
+    _productsList = mysql_funcs.get_table_data("products")[0]
+    tableData = []
+    if not _productsList:
+        tableData = [["", "", "", "", ""]]
+    else:
+        for product in _productsList:
+            tableData.append(
+                [
+                    str(product[0]),
+                    product[1],
+                    product[4],
+                    str(product[2]),
+                ]
+            )
+
+    layout = [
+        [sg.Text("Search"), sg.InputText(key="keyword", enable_events=True)],
+        [
+            sg.Table(
+                values=tableData,
+                headings=["ID", "Name", "Qty", "Price"],
+                enable_events=True,
+                select_mode=sg.TABLE_SELECT_MODE_NONE,
+                key="prodTable",
+            )
+        ],
+        [
+            sg.Column(
+                [[sg.Button("Select", size=(10, 1)), sg.Button("Close", size=(10, 1))]],
+                element_justification="right",
+            )
+        ],
+    ]
+
+    return sg.Window("Browse", layout, size=(400, 400), use_default_focus=False)
+
+
+def clear_fields(window):
+    window["item_id"].Update("")
+    window["item_name"].Update("")
+    window["item_qty"].Update("")
+    window["price"].Update("")
